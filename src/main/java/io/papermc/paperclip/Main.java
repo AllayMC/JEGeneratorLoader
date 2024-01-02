@@ -1,7 +1,43 @@
 package io.papermc.paperclip;
 
-public class Main {
-    public static void main(String[] args) {
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 
+public class Main {
+    public static void main(final String[] args) {
+        if (getJavaVersion() < 17) {
+            System.err.println("Minecraft 1.19 requires running the server with Java 17 or above. " +
+                    "For information on how to update Java, see https://docs.papermc.io/misc/java-install");
+            System.exit(1);
+        }
+
+        try {
+            final Class<?> paperclipClass = Class.forName("io.papermc.paperclip.Paperclip");
+            final Method mainMethod = paperclipClass.getMethod("setup", URLClassLoader.class, String[].class);
+            URLClassLoader urlClassLoader = new URLClassLoader(new URL[]{}, Main.class.getClass().getClassLoader());
+            mainMethod.invoke(null, urlClassLoader, args);
+        } catch (final Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static int getJavaVersion() {
+        final String version = System.getProperty("java.specification.version");
+        final String[] parts = version.split("\\.");
+
+        final String errorMsg = "Could not determine version of the current JVM";
+        if (parts.length == 0) {
+            throw new IllegalStateException(errorMsg);
+        }
+
+        if (parts[0].equals("1")) {
+            if (parts.length < 2) {
+                throw new IllegalStateException(errorMsg);
+            }
+            return Integer.parseInt(parts[1]);
+        } else {
+            return Integer.parseInt(parts[0]);
+        }
     }
 }

@@ -11,7 +11,6 @@ repositories {
 
 dependencies {
     implementation("io.sigpipe:jbsdiff:1.0")
-    compileOnly(files("src/lib/Allay-API-0.0.1-all.jar"))// todo move maven
 }
 
 val isSnapshot = project.version.toString().endsWith("-SNAPSHOT")

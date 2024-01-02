@@ -1,12 +1,13 @@
 package io.papermc.paperclip;
 
-import org.allaymc.api.datastruct.DynamicURLClassLoader;
-
 import java.io.*;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
@@ -15,25 +16,31 @@ import java.util.HashMap;
 import java.util.Map;
 
 public final class Paperclip {
-    private static String workPath;
 
-    public static void setup(DynamicURLClassLoader loader, final String[] args) {
-        workPath = args[0];
-        File file = Path.of(workPath).toFile();
+    public static void setup(URLClassLoader loader, final String[] args) {
+        Path workPath = Path.of(".");
+        File file = workPath.toFile();
         if (!file.exists() || !file.isDirectory()) {
             System.err.println("The working directory of je generator must be first param!");
             System.exit(1);
         }
 
-        if (Path.of(workPath).toAbsolutePath().toString().contains("!")) {
+        if (workPath.toAbsolutePath().toString().contains("!")) {
             System.err.println("Paperclip may not run in a directory containing '!'. Please rename the affected folder.");
             System.exit(1);
         }
 
-        final URL[] classpathUrls = setupClasspath();
-        for (var url : classpathUrls) {
-            loader.addURL(url);
+        try {
+            Method addURL = loader.getClass().getDeclaredMethod("addURL", URL.class);
+            addURL.setAccessible(true);
+            final URL[] classpathUrls = setupClasspath();
+            for (var url : classpathUrls) {
+                addURL.invoke(loader, url);
+            }
+        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+            throw new RuntimeException(e);
         }
+
         final String mainClassName = findMainClass();
         System.out.println("Starting " + mainClassName);
         try {
@@ -48,7 +55,7 @@ public final class Paperclip {
     }
 
     private static URL[] setupClasspath() {
-        final var repoDir = Path.of(System.getProperty("bundlerRepoDir", workPath));
+        final var repoDir = Path.of(System.getProperty("bundlerRepoDir", ""));
 
         final PatchEntry[] patches = findPatches();
         final DownloadContext downloadContext = findDownloadContext();
